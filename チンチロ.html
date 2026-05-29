@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>チンチロ</title>
+
+<style>
+body{
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    text-align:center;
+    padding:20px;
+    background:#f5f5f5;
+}
+
+h1{
+    margin-bottom:20px;
+}
+
+#dice{
+    font-size:60px;
+    margin:20px;
+}
+
+button{
+    font-size:22px;
+    padding:12px 24px;
+    border:none;
+    border-radius:12px;
+    background:#007AFF;
+    color:white;
+}
+
+button:active{
+    opacity:0.7;
+}
+
+#result{
+    margin-top:20px;
+    font-size:20px;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    border-radius:16px;
+    max-width:500px;
+    margin:auto;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>🎲 チンチロ 🎲</h1>
+
+<div id="dice">🎲🎲🎲</div>
+
+<button onclick="play()">
+サイコロを振る
+</button>
+
+<div id="result"></div>
+
+</div>
+
+<script>
+
+function roll(){
+    return Math.floor(Math.random()*6)+1;
+}
+
+function judge(d){
+
+    d.sort((a,b)=>a-b);
+
+    if(d[0]===d[1] && d[1]===d[2]){
+        return {
+            score:100+d[0],
+            text:"ゾロ目"
+        };
+    }
+
+    if(
+        d[0]===1 &&
+        d[1]===2 &&
+        d[2]===3
+    ){
+        return {
+            score:1,
+            text:"ヒフミ"
+        };
+    }
+
+    if(
+        d[0]===4 &&
+        d[1]===5 &&
+        d[2]===6
+    ){
+        return {
+            score:99,
+            text:"シゴロ"
+        };
+    }
+
+    if(d[0]===d[1]){
+        return {
+            score:50+d[2],
+            text:d[2]+"の目"
+        };
+    }
+
+    if(d[1]===d[2]){
+        return {
+            score:50+d[0],
+            text:d[0]+"の目"
+        };
+    }
+
+    return {
+        score:10,
+        text:"目なし"
+    };
+}
+
+function play(){
+
+    const player=[
+        roll(),
+        roll(),
+        roll()
+    ];
+
+    const cpu=[
+        roll(),
+        roll(),
+        roll()
+    ];
+
+    const p=judge([...player]);
+    const c=judge([...cpu]);
+
+    let result="引き分け";
+
+    if(p.score>c.score){
+        result="あなたの勝ち";
+    }
+
+    if(p.score<c.score){
+        result="あなたの負け";
+    }
+
+    document.getElementById("dice").innerHTML=
+        player.join(" ");
+
+    document.getElementById("result").innerHTML=
+        "<h2>"+result+"</h2>" +
+        "あなた："+
+        player.join("-")+
+        "（"+p.text+"）<br><br>" +
+        "親："+
+        cpu.join("-")+
+        "（"+c.text+"）";
+}
+
+</script>
+
+</body>
+</html>
