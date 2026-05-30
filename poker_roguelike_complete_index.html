@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Poker Roguelike - Royal Dungeon</title>
+<style>
+:root{
+  --bg:#0d1117;
+  --bg2:#151b23;
+  --panel:#1f2933;
+  --panel2:#263442;
+  --panel3:#334155;
+  --text:#f8fafc;
+  --muted:#a8b3c2;
+  --gold:#f5c542;
+  --red:#ef4444;
+  --green:#22c55e;
+  --blue:#60a5fa;
+  --purple:#c084fc;
+  --card:#fff7e6;
+  --black:#111827;
+  --shadow:rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:radial-gradient(circle at 50% -20%,#243447 0%,var(--bg) 55%,#070a0f 100%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans JP",sans-serif}
+body{padding:12px;touch-action:manipulation}
+.wrap{max-width:1100px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+h1{font-size:22px;margin:0;letter-spacing:.06em}
+.subtitle{font-size:12px;color:var(--muted);margin-top:2px}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:860px){.grid{grid-template-columns:1.25fr .75fr}}
+.panel{background:rgba(31,41,51,.92);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:12px;box-shadow:0 14px 28px var(--shadow)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:10px}
+.stat{background:var(--panel2);border-radius:13px;padding:8px 6px;text-align:center}
+.stat .l{font-size:11px;color:var(--muted)}
+.stat .v{font-size:17px;font-weight:900;margin-top:2px}
+.enemy{background:linear-gradient(135deg,#3b1d25,#233142);border-radius:16px;padding:12px;margin-bottom:10px}
+.enemyTop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.enemyName{font-size:18px;font-weight:900}
+.enemyIntent{font-size:13px;color:var(--muted);margin-top:4px}
+.hpbar{height:12px;background:#111827;border-radius:999px;overflow:hidden;margin-top:10px;border:1px solid rgba(255,255,255,.08)}
+.hpfill{height:100%;background:linear-gradient(90deg,#ef4444,#fb7185);width:100%;transition:width .25s}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:14px 0 10px}
+.card{aspect-ratio:.70;background:linear-gradient(160deg,#fffdf4,#f2e2bb);color:var(--black);border-radius:14px;border:3px solid transparent;box-shadow:0 8px 16px var(--shadow);display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:7px 4px;font-weight:950;user-select:none;cursor:pointer;transition:.12s}
+.card:active{transform:scale(.96)}
+.card.keep{border-color:var(--gold);transform:translateY(-8px);box-shadow:0 12px 20px rgba(245,197,66,.22)}
+.card.red{color:#c0262d}
+.card .keepTxt{font-size:10px;color:#856404;height:12px}
+.card .rank{font-size:23px;line-height:1}
+.card .suit{font-size:25px;line-height:1}
+.result{text-align:center;margin-top:4px}
+.handName{font-size:22px;font-weight:950;color:var(--gold)}
+.handSub{font-size:13px;color:var(--muted);margin-top:3px;min-height:20px}
+.buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+button{border:0;border-radius:14px;padding:13px 10px;font-size:15px;font-weight:900;background:var(--gold);color:#111827;cursor:pointer;box-shadow:0 6px 14px rgba(0,0,0,.20)}
+button:active{transform:translateY(1px)}
+button.secondary{background:#e5e7eb}
+button.redBtn{background:var(--red);color:white}
+button.blueBtn{background:var(--blue);color:#08111f}
+button.greenBtn{background:var(--green);color:#06130b}
+button:disabled{opacity:.45;cursor:not-allowed}
+.sectionTitle{font-weight:950;color:var(--blue);margin:10px 0 6px}
+.log{height:190px;overflow:auto;background:#0d1117;border-radius:14px;padding:10px;font-size:13px;line-height:1.55;border:1px solid rgba(255,255,255,.06)}
+.log div{margin-bottom:8px}
+.relics{display:grid;gap:8px}
+.relic{background:var(--panel2);border-radius:13px;padding:9px;font-size:13px;line-height:1.45}
+.relic b{color:var(--gold)}
+.help{font-size:12px;color:var(--muted);line-height:1.55}
+.table{display:grid;grid-template-columns:1fr auto;gap:5px;font-size:12px;color:#dbe4ee}
+.table div:nth-child(2n){text-align:right;color:var(--gold);font-weight:800}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:16px;z-index:99}
+.modal{width:min(620px,100%);max-height:88vh;overflow:auto;background:#17202a;border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:16px;box-shadow:0 22px 50px rgba(0,0,0,.55)}
+.modal h2{margin:0 0 8px;font-size:22px}
+.choices{display:grid;gap:9px;margin:12px 0}
+.choice{background:var(--panel2);border:2px solid transparent;border-radius:16px;padding:12px;cursor:pointer;line-height:1.45}
+.choice:active,.choice:hover{border-color:var(--gold)}
+.choice b{color:var(--gold)}
+.choice .cost{float:right;color:var(--green);font-weight:900}
+.badge{display:inline-block;border-radius:999px;background:#111827;color:var(--gold);padding:2px 8px;font-size:11px;font-weight:900;margin-left:4px}
+.topButtons{display:flex;gap:8px}
+.smallBtn{font-size:13px;padding:10px 12px}
+.flash{animation:flash .3s}
+@keyframes flash{0%{filter:brightness(1)}50%{filter:brightness(1.8)}100%{filter:brightness(1)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>POKER ROGUELIKE</h1>
+      <div class="subtitle">ポーカーの役で敵を倒すローグライト。iPhone対応・HTML単体。</div>
+    </div>
+    <div class="topButtons">
+      <button class="secondary smallBtn" onclick="openHelp()">遊び方</button>
+      <button class="redBtn smallBtn" onclick="newRun()">新規</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <main class="panel" id="mainPanel">
+      <div class="stats">
+        <div class="stat"><div class="l">階層</div><div class="v" id="floor">1</div></div>
+        <div class="stat"><div class="l">HP</div><div class="v" id="hp">40</div></div>
+        <div class="stat"><div class="l">GOLD</div><div class="v" id="gold">0</div></div>
+        <div class="stat"><div class="l">交換</div><div class="v" id="draws">1</div></div>
+        <div class="stat"><div class="l">山札</div><div class="v" id="deckLeft">47</div></div>
+      </div>
+
+      <div class="enemy">
+        <div class="enemyTop">
+          <div>
+            <div class="enemyName" id="enemyName">---</div>
+            <div class="enemyIntent" id="enemyIntent">---</div>
+          </div>
+          <div style="text-align:right;font-weight:950;color:var(--red)">
+            <span id="enemyHpText">0</span> HP
+          </div>
+        </div>
+        <div class="hpbar"><div class="hpfill" id="enemyHpBar"></div></div>
+      </div>
+
+      <div class="cards" id="cards"></div>
+
+      <div class="result">
+        <div class="handName" id="handName">---</div>
+        <div class="handSub" id="handSub">残すカードをタップしてKEEP</div>
+      </div>
+
+      <div class="buttons">
+        <button id="drawBtn" onclick="drawCards()">未KEEPを交換</button>
+        <button id="atkBtn" class="greenBtn" onclick="attack()">この役で攻撃</button>
+      </div>
+    </main>
+
+    <aside class="panel">
+      <div class="sectionTitle">所持レリック</div>
+      <div class="relics" id="relics"></div>
+
+      <div class="sectionTitle">ログ</div>
+      <div class="log" id="log"></div>
+
+      <div class="sectionTitle">役の基本威力</div>
+      <div class="table">
+        <div>ハイカード</div><div>2</div>
+        <div>ワンペア</div><div>7</div>
+        <div>ツーペア</div><div>12</div>
+        <div>スリーカード</div><div>18</div>
+        <div>ストレート</div><div>26</div>
+        <div>フラッシュ</div><div>30</div>
+        <div>フルハウス</div><div>42</div>
+        <div>フォーカード</div><div>60</div>
+        <div>ストレートフラッシュ</div><div>90</div>
+        <div>ロイヤルフラッシュ</div><div>150</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+const suits=["♠","♥","♦","♣"];
+const ranks=["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+const rv=Object.fromEntries(ranks.map((r,i)=>[r,i+2]));
+
+const baseDamage={
+  "ハイカード":2,
+  "ワンペア":7,
+  "ツーペア":12,
+  "スリーカード":18,
+  "ストレート":26,
+  "フラッシュ":30,
+  "フルハウス":42,
+  "フォーカード":60,
+  "ストレートフラッシュ":90,
+  "ロイヤルフラッシュ":150
+};
+
+const enemyList=[
+  {name:"スライムギャンブラー", hp:28, atk:5, text:"小さな賭けで削ってくる。"},
+  {name:"ゴブリンディーラー", hp:42, atk:8, text:"イカサマ気味のディーラー。"},
+  {name:"ミミック金庫", hp:58, atk:10, text:"硬い。フルハウス以上を狙いたい。"},
+  {name:"カジノオーガ", hp:78, atk:13, text:"重い一撃。短期決戦推奨。"},
+  {name:"黒服の悪魔", hp:98, atk:16, text:"負けを回収しに来る。"},
+  {name:"ジョーカーの影", hp:120, atk:19, text:"終盤の門番。"},
+  {name:"ロイヤルドラゴン", hp:165, atk:24, text:"最終ボス。強い役とレリックで倒せ。"}
+];
+
+const relicPool=[
+  {id:"pair", name:"ペアの指輪", desc:"ワンペア以上ならダメージ +8", type:"damage"},
+  {id:"twoPair", name:"二対のコイン", desc:"ツーペア以上ならダメージ +10", type:"damage"},
+  {id:"flush", name:"赤いチップ", desc:"フラッシュ系ならダメージ +18", type:"damage"},
+  {id:"straight", name:"階段の地図", desc:"ストレート系ならダメージ +18", type:"damage"},
+  {id:"spade", name:"スペードの短剣", desc:"♠1枚につきダメージ +3", type:"damage"},
+  {id:"heart", name:"ハートの杯", desc:"♥が3枚以上なら攻撃時HP 4回復", type:"heal"},
+  {id:"diamond", name:"ダイヤの鉱脈", desc:"♦が2枚以上なら勝利時Gold +5", type:"money"},
+  {id:"club", name:"クラブの棍棒", desc:"♣が3枚以上ならダメージ +14", type:"damage"},
+  {id:"ace", name:"エースの王冠", desc:"Aを含む役ならダメージ +12", type:"damage"},
+  {id:"draw", name:"予備デッキ", desc:"各戦闘の交換回数 +1", type:"passive"},
+  {id:"shield", name:"割れた盾", desc:"敵から受けるダメージ -3", type:"passive"},
+  {id:"maxhp", name:"命の器", desc:"最大HP +12、HP +12", type:"instant"},
+  {id:"joker", name:"小さなジョーカー", desc:"最終ダメージを1.25倍", type:"damage"},
+  {id:"glass", name:"クリスタル倍率", desc:"フルハウス以上の最終ダメージを1.5倍", type:"damage"},
+  {id:"vampire", name:"吸血チップ", desc:"与えたダメージの10%を回復", type:"heal"},
+  {id:"rich", name:"黄金のジョーカー", desc:"勝利時Gold +8", type:"money"}
+];
+
+let st;
+
+function newRun(){
+  st={
+    floor:1,
+    maxHp:46,
+    hp:46,
+    gold:0,
+    deck:[],
+    hand:[],
+    keep:[false,false,false,false,false],
+    draws:1,
+    enemy:null,
+    relics:[],
+    gameOver:false
+  };
+  clearLog();
+  log("新しいラン開始。カードをKEEPして強い役を作れ。");
+  startBattle();
+}
+
+function makeDeck(){
+  const d=[];
+  for(const s of suits)for(const r of ranks)d.push({s,r});
+  return shuffle(d);
+}
+
+function shuffle(a){
+  const b=a.slice();
+  for(let i=b.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [b[i],b[j]]=[b[j],b[i]];
+  }
+  return b;
+}
+
+function startBattle(){
+  const base=enemyList[Math.min(st.floor-1,enemyList.length-1)];
+  const bonus=Math.max(0,st.floor-1);
+  st.enemy={
+    name:base.name,
+    maxHp:base.hp+bonus*7,
+    hp:base.hp+bonus*7,
+    atk:base.atk+Math.floor(bonus*1.5),
+    text:base.text
+  };
+  st.deck=makeDeck();
+  st.hand=st.deck.splice(0,5);
+  st.keep=[false,false,false,false,false];
+  st.draws=hasRelic("draw")?2:1;
+  log("階層"+st.floor+"："+st.enemy.name+" が現れた。");
+  render();
+}
+
+function hasRelic(id){return st.relics.some(r=>r.id===id)}
+function getRelic(id){return st.relics.find(r=>r.id===id)}
+
+function toggleKeep(i){
+  if(st.gameOver)return;
+  st.keep[i]=!st.keep[i];
+  render();
+}
+
+function drawCards(){
+  if(st.gameOver||st.draws<=0)return;
+  for(let i=0;i<5;i++){
+    if(!st.keep[i]&&st.deck.length)st.hand[i]=st.deck.pop();
+  }
+  st.draws--;
+  log("未KEEPカードを交換した。");
+  render();
+}
+
+function evaluate(hand){
+  const vals=hand.map(c=>rv[c.r]).sort((a,b)=>a-b);
+  const count={};
+  for(const c of hand)count[c.r]=(count[c.r]||0)+1;
+  const counts=Object.values(count).sort((a,b)=>b-a);
+  const flush=hand.every(c=>c.s===hand[0].s);
+  const u=[...new Set(vals)];
+  let straight=false;
+  if(u.length===5){
+    straight=(u[4]-u[0]===4)||JSON.stringify(u)==="[2,3,4,5,14]";
+  }
+  let name="ハイカード";
+  let rank=0;
+  const royal=flush&&JSON.stringify(u)==="[10,11,12,13,14]";
+  if(royal){name="ロイヤルフラッシュ";rank=9}
+  else if(straight&&flush){name="ストレートフラッシュ";rank=8}
+  else if(counts[0]===4){name="フォーカード";rank=7}
+  else if(counts[0]===3&&counts[1]===2){name="フルハウス";rank=6}
+  else if(flush){name="フラッシュ";rank=5}
+  else if(straight){name="ストレート";rank=4}
+  else if(counts[0]===3){name="スリーカード";rank=3}
+  else if(counts[0]===2&&counts[1]===2){name="ツーペア";rank=2}
+  else if(counts[0]===2){name="ワンペア";rank=1}
+  return {name,rank,flush,straight,counts,vals:u};
+}
+
+function calcDamage(){
+  const ev=evaluate(st.hand);
+  let dmg=baseDamage[ev.name];
+  const h=st.hand;
+
+  if(hasRelic("pair")&&ev.rank>=1)dmg+=8;
+  if(hasRelic("twoPair")&&ev.rank>=2)dmg+=10;
+  if(hasRelic("flush")&&ev.flush)dmg+=18;
+  if(hasRelic("straight")&&ev.straight)dmg+=18;
+  if(hasRelic("spade"))dmg+=h.filter(c=>c.s==="♠").length*3;
+  if(hasRelic("club")&&h.filter(c=>c.s==="♣").length>=3)dmg+=14;
+  if(hasRelic("ace")&&h.some(c=>c.r==="A"))dmg+=12;
+
+  let mult=1;
+  if(hasRelic("joker"))mult*=1.25;
+  if(hasRelic("glass")&&ev.rank>=6)mult*=1.5;
+
+  dmg=Math.floor(dmg*mult);
+  return {...ev,dmg,mult};
+}
+
+function attack(){
+  if(st.gameOver)return;
+  const res=calcDamage();
+  st.enemy.hp-=res.dmg;
+  flash();
+  log(res.name+"！ "+res.dmg+"ダメージ。");
+
+  if(hasRelic("heart")&&st.hand.filter(c=>c.s==="♥").length>=3){
+    heal(4);
+    log("ハートの杯で4回復。");
+  }
+  if(hasRelic("vampire")){
+    const n=Math.max(1,Math.floor(res.dmg*0.10));
+    heal(n);
+    log("吸血チップで"+n+"回復。");
+  }
+
+  if(st.enemy.hp<=0){
+    winBattle(res);
+    return;
+  }
+
+  let incoming=st.enemy.atk;
+  if(hasRelic("shield"))incoming=Math.max(0,incoming-3);
+  st.hp-=incoming;
+  log(st.enemy.name+"の攻撃。"+incoming+"ダメージ。");
+
+  if(st.hp<=0){
+    st.hp=0;
+    st.gameOver=true;
+    render();
+    showGameOver();
+    return;
+  }
+
+  st.deck=makeDeck();
+  st.hand=st.deck.splice(0,5);
+  st.keep=[false,false,false,false,false];
+  st.draws=hasRelic("draw")?2:1;
+  render();
+}
+
+function winBattle(){
+  let gain=10+st.floor*3;
+  if(hasRelic("diamond")&&st.hand.filter(c=>c.s==="♦").length>=2)gain+=5;
+  if(hasRelic("rich"))gain+=8;
+  st.gold+=gain;
+  log(st.enemy.name+"を倒した。"+gain+"G獲得。");
+
+  if(st.floor>=7){
+    st.gameOver=true;
+    render();
+    showClear();
+    return;
+  }
+
+  render();
+  showReward();
+}
+
+function heal(n){
+  st.hp=Math.min(st.maxHp,st.hp+n);
+}
+
+function showReward(){
+  const available=relicPool.filter(r=>!hasRelic(r.id)||r.id==="maxhp");
+  const choices=shuffle(available).slice(0,3);
+  let html="<h2>勝利報酬</h2><div class='help'>レリックを1つ選んで強化。2階ごとにショップが開く。</div><div class='choices'>";
+  for(const r of choices){
+    html+=`<div class="choice" onclick="chooseRelic('${r.id}')"><b>${r.name}</b><br>${r.desc}</div>`;
+  }
+  html+="</div>";
+  setModal(html);
+}
+
+function chooseRelic(id){
+  const r=relicPool.find(x=>x.id===id);
+  if(!r)return;
+  if(id==="maxhp"){
+    st.maxHp+=12;
+    st.hp+=12;
+    log("命の器：最大HP +12。");
+  }else{
+    st.relics.push(r);
+    log("レリック「"+r.name+"」を入手。");
+  }
+  closeModal();
+  if(st.floor%2===0)showShop();
+  else nextFloor();
+  render();
+}
+
+function showShop(){
+  let html=`
+  <h2>ショップ</h2>
+  <div class="help">Goldを使って回復や強化ができる。</div>
+  <div class="choices">
+    <div class="choice" onclick="buy('heal')"><b>薬草</b><span class="cost">14G</span><br>HPを18回復</div>
+    <div class="choice" onclick="buy('max')"><b>命の欠片</b><span class="cost">24G</span><br>最大HP +8、HP +8</div>
+    <div class="choice" onclick="buy('draw')"><b>追加交換券</b><span class="cost">30G</span><br>予備デッキを未所持なら獲得</div>
+    <div class="choice" onclick="nextFloor()"><b>次の階へ進む</b><br>買い物を終える</div>
+  </div>`;
+  setModal(html);
+}
+
+function buy(type){
+  if(type==="heal"){
+    if(st.gold<14){log("Gold不足。");render();return}
+    st.gold-=14;heal(18);log("薬草で18回復。");
+  }
+  if(type==="max"){
+    if(st.gold<24){log("Gold不足。");render();return}
+    st.gold-=24;st.maxHp+=8;st.hp+=8;log("命の欠片：最大HP +8。");
+  }
+  if(type==="draw"){
+    if(st.gold<30){log("Gold不足。");render();return}
+    if(hasRelic("draw")){log("予備デッキはすでに所持。");return}
+    st.gold-=30;st.relics.push(relicPool.find(r=>r.id==="draw"));log("予備デッキを購入。");
+  }
+  render();
+  showShop();
+}
+
+function nextFloor(){
+  closeModal();
+  st.floor++;
+  startBattle();
+}
+
+function render(){
+  document.getElementById("floor").textContent=st.floor;
+  document.getElementById("hp").textContent=st.hp+"/"+st.maxHp;
+  document.getElementById("gold").textContent=st.gold;
+  document.getElementById("draws").textContent=st.draws;
+  document.getElementById("deckLeft").textContent=st.deck.length;
+
+  document.getElementById("enemyName").textContent=st.enemy.name;
+  document.getElementById("enemyIntent").textContent=st.enemy.text+"　攻撃予定："+(hasRelic("shield")?Math.max(0,st.enemy.atk-3):st.enemy.atk);
+  document.getElementById("enemyHpText").textContent=Math.max(0,st.enemy.hp)+"/"+st.enemy.maxHp;
+  document.getElementById("enemyHpBar").style.width=Math.max(0,Math.min(100,st.enemy.hp/st.enemy.maxHp*100))+"%";
+
+  const area=document.getElementById("cards");
+  area.innerHTML="";
+  st.hand.forEach((c,i)=>{
+    const el=document.createElement("div");
+    el.className="card "+((c.s==="♥"||c.s==="♦")?"red ":"")+(st.keep[i]?"keep":"");
+    el.onclick=()=>toggleKeep(i);
+    el.innerHTML=`<div class="keepTxt">${st.keep[i]?"KEEP":""}</div><div class="rank">${c.r}</div><div class="suit">${c.s}</div>`;
+    area.appendChild(el);
+  });
+
+  const r=calcDamage();
+  document.getElementById("handName").textContent=r.name;
+  document.getElementById("handSub").textContent="予想ダメージ："+r.dmg+(r.mult>1?"　倍率×"+r.mult.toFixed(2):"");
+
+  document.getElementById("drawBtn").disabled=st.gameOver||st.draws<=0;
+  document.getElementById("atkBtn").disabled=st.gameOver;
+
+  const relics=document.getElementById("relics");
+  relics.innerHTML="";
+  if(st.relics.length===0){
+    relics.innerHTML="<div class='relic'>まだなし</div>";
+  }else{
+    for(const r of st.relics){
+      const div=document.createElement("div");
+      div.className="relic";
+      div.innerHTML="<b>"+r.name+"</b><br>"+r.desc;
+      relics.appendChild(div);
+    }
+  }
+}
+
+function openHelp(){
+  setModal(`
+  <h2>遊び方</h2>
+  <div class="help">
+    1. 手札5枚が配られる。<br>
+    2. 残したいカードをタップしてKEEP。<br>
+    3. 「未KEEPを交換」で不要カードを交換。<br>
+    4. 役のダメージで敵を攻撃。敵が残ると反撃される。<br>
+    5. 勝利後にレリックを選び、7階のボス撃破でクリア。<br><br>
+    死んだら最初から。毎回レリックとカード運が変わる。
+  </div>
+  <button class="secondary" onclick="closeModal()">閉じる</button>
+  `);
+}
+
+function showGameOver(){
+  setModal(`
+  <h2>GAME OVER</h2>
+  <div class="help">階層${st.floor}で倒れた。ローグライクなので最初からやり直し。</div>
+  <button onclick="closeModal();newRun()">もう一度</button>
+  `);
+}
+
+function showClear(){
+  setModal(`
+  <h2>クリア！</h2>
+  <div class="help">ロイヤルドラゴンを倒した。最終Gold：${st.gold}</div>
+  <button onclick="closeModal();newRun()">新しいラン</button>
+  `);
+}
+
+function setModal(html){
+  document.getElementById("modal").innerHTML=html;
+  document.getElementById("overlay").style.display="flex";
+}
+function closeModal(){document.getElementById("overlay").style.display="none"}
+function log(t){
+  const l=document.getElementById("log");
+  const d=document.createElement("div");
+  d.textContent=t;
+  l.prepend(d);
+}
+function clearLog(){document.getElementById("log").innerHTML=""}
+function flash(){
+  const p=document.getElementById("mainPanel");
+  p.classList.remove("flash");
+  void p.offsetWidth;
+  p.classList.add("flash");
+}
+
+newRun();
+</script>
+</body>
+</html>
