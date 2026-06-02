@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>錠剤カウンター Pro</title>
+<style>
+body{
+  margin:0;
+  background:#111;
+  color:white;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+header{
+  background:#222;
+  padding:20px 16px;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+h1{margin:0 0 14px;font-size:26px;}
+.countBox{font-size:26px;}
+#count{
+  color:#ff3b30;
+  font-size:52px;
+  font-weight:900;
+}
+main{padding:12px;}
+button,input[type=file]{
+  font-size:16px;
+  margin:6px 4px 6px 0;
+}
+button{
+  border:0;
+  border-radius:10px;
+  padding:10px 14px;
+  font-weight:700;
+}
+.primary{background:#0a84ff;color:white;}
+.warn{background:#ff9500;color:black;}
+.gray{background:#444;color:white;}
+.panel{
+  background:#1d1d1f;
+  border-radius:14px;
+  padding:14px;
+  margin:12px 0;
+}
+.row{margin:13px 0;}
+label{
+  display:flex;
+  justify-content:space-between;
+  color:#ddd;
+  font-size:15px;
+}
+input[type=range]{width:100%;}
+canvas{
+  width:100%;
+  border-radius:14px;
+  background:#000;
+  touch-action:none;
+}
+.small{
+  color:#aaa;
+  font-size:13px;
+  line-height:1.6;
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>錠剤カウンター</h1>
+  <div class="countBox">検出数：<span id="count">0</span></div>
+</header>
+
+<main>
+  <input id="file" type="file" accept="image/*" capture="environment">
+  <br>
+  <button class="primary" onclick="autoDetect()">自動カウント</button>
+  <button class="gray" onclick="detect()">再検出</button>
+  <button class="warn" onclick="resetManual()">手動修正リセット</button>
+
+  <div class="panel">
+    <div class="row">
+      <label>検出感度 <span id="vSensitivity"></span></label>
+      <input id="sensitivity" type="range" min="10" max="100" value="55">
+    </div>
+
+    <div class="row">
+      <label>最小半径 <span id="vMinR"></span></label>
+      <input id="minR" type="range" min="4" max="80" value="12">
+    </div>
+
+    <div class="row">
+      <label>最大半径 <span id="vMaxR"></span></label>
+      <input id="maxR" type="range" min="8" max="120" value="38">
+    </div>
+
+    <div class="row">
+      <label>錠剤同士の最小距離 <span id="vMinDist"></span></label>
+      <input id="minDist" type="range" min="5" max="100" value="28">
+    </div>
+
+    <div class="row">
+      <label>白さ判定 <span id="vWhite"></span></label>
+      <input id="white" type="range" min="80" max="250" value="145">
+    </div>
+
+    <div class="row">
+      <label>輪郭の太さ <span id="vLine"></span></label>
+      <input id="line" type="range" min="2" max="12" value="4">
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="panel small">
+    <b>使い方</b><br>
+    ・写真を選ぶ → 自動カウント<br>
+    ・赤丸をタップ → 除外<br>
+    ・見逃し錠剤をタップ → 追加<br>
+    ・バーを動かすと自動で再検出<br><br>
+    ※ 白い錠剤を「円」として検出する方式です。印字を拾いにくくしています。
+  </div>
+</main>
+
+<script async src="https://docs.opencv.org/4.x/opencv.js" onload="cvReady=true"></script>
+
+<script>
+let cvReady = false;
+
+const fileInput = document.getElementById("file");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const originalCanvas = document.createElement("canvas");
+const originalCtx = originalCanvas.getContext("2d");
+
+let img = new Image();
+let circles = [];
+let removed = new Set();
+let added = [];
+
+const $ = id => document.getElementById(id);
+
+["sensitivity","minR","maxR","minDist","white","line"].forEach(id=>{
+  $(id).addEventListener("input",()=>{
+    updateLabels();
+    detect();
+  });
+});
+
+fileInput.addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const url = URL.createObjectURL(file);
+  img.onload = ()=>{
+    prepareImage();
+    autoDetect();
+  };
+  img.src = url;
+});
+
+function prepareImage(){
+  const maxW = 1600;
+  const scale = Math.min(1, maxW / img.width);
+
+  originalCanvas.width = Math.round(img.width * scale);
+  originalCanvas.height = Math.round(img.height * scale);
+
+  canvas.width = originalCanvas.width;
+  canvas.height = originalCanvas.height;
+
+  originalCtx.drawImage(img,0,0,originalCanvas.width,originalCanvas.height);
+  drawBase();
+}
+
+function drawBase(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(originalCanvas,0,0);
+}
+
+function autoDetect(){
+  if(!cvReady){
+    alert("画像処理エンジンを読み込み中です。数秒後にもう一度押してください。");
+    return;
+  }
+  if(!originalCanvas.width){
+    alert("先に写真を選んでください。");
+    return;
+  }
+
+  autoSetParams();
+  removed.clear();
+  added = [];
+  detect();
+}
+
+function autoSetParams(){
+  const w = originalCanvas.width;
+  const h = originalCanvas.height;
+  const shortSide = Math.min(w,h);
+
+  $("minR").value = Math.max(8, Math.round(shortSide / 95));
+  $("maxR").value = Math.max(18, Math.round(shortSide / 28));
+  $("minDist").value = Math.max(15, Math.round(shortSide / 45));
+  $("sensitivity").value = 55;
+  $("white").value = 145;
+  $("line").value = 4;
+
+  updateLabels();
+}
+
+function detect(){
+  if(!cvReady || !originalCanvas.width) return;
+
+  let src = cv.imread(originalCanvas);
+  let gray = new cv.Mat();
+  let blur = new cv.Mat();
+  let circlesMat = new cv.Mat();
+
+  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+  cv.medianBlur(gray, blur, 5);
+
+  const minDist = Number($("minDist").value);
+  const minR = Number($("minR").value);
+  const maxR = Number($("maxR").value);
+  const sensitivity = Number($("sensitivity").value);
+
+  const param1 = 100;
+  const param2 = Math.max(8, 70 - sensitivity);
+
+  cv.HoughCircles(
+    blur,
+    circlesMat,
+    cv.HOUGH_GRADIENT,
+    1,
+    minDist,
+    param1,
+    param2,
+    minR,
+    maxR
+  );
+
+  circles = [];
+
+  for(let i=0;i<circlesMat.cols;i++){
+    const x = circlesMat.data32F[i*3];
+    const y = circlesMat.data32F[i*3+1];
+    const r = circlesMat.data32F[i*3+2];
+
+    if(isWhiteEnough(gray,x,y,r)){
+      circles.push({x,y,r});
+    }
+  }
+
+  circles = removeDuplicates(circles);
+
+  src.delete();
+  gray.delete();
+  blur.delete();
+  circlesMat.delete();
+
+  removed.clear();
+  draw();
+}
+
+function isWhiteEnough(gray,x,y,r){
+  const whiteThreshold = Number($("white").value);
+  let sum = 0;
+  let count = 0;
+
+  const step = Math.max(2, Math.round(r / 4));
+
+  for(let dy=-r*0.6; dy<=r*0.6; dy+=step){
+    for(let dx=-r*0.6; dx<=r*0.6; dx+=step){
+      if(dx*dx + dy*dy > r*r*0.36) continue;
+
+      const px = Math.round(x + dx);
+      const py = Math.round(y + dy);
+
+      if(px < 0 || py < 0 || px >= gray.cols || py >= gray.rows) continue;
+
+      sum += gray.ucharPtr(py,px)[0];
+      count++;
+    }
+  }
+
+  if(count === 0) return false;
+  return sum / count >= whiteThreshold;
+}
+
+function removeDuplicates(list){
+  const result = [];
+
+  list.sort((a,b)=>b.r-a.r);
+
+  for(const c of list){
+    let duplicate = false;
+
+    for(const d of result){
+      const dist = Math.hypot(c.x-d.x,c.y-d.y);
+      if(dist < Math.min(c.r,d.r) * 0.75){
+        duplicate = true;
+        break;
+      }
+    }
+
+    if(!duplicate) result.push(c);
+  }
+
+  return result;
+}
+
+function draw(){
+  drawBase();
+
+  const line = Number($("line").value);
+  ctx.lineWidth = line;
+  ctx.font = "bold 20px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  let n = 0;
+
+  circles.forEach((c,i)=>{
+    if(removed.has(i)) return;
+    n++;
+
+    ctx.beginPath();
+    ctx.arc(c.x,c.y,c.r+3,0,Math.PI*2);
+    ctx.strokeStyle = "#ff3b30";
+    ctx.stroke();
+
+    ctx.fillStyle = "#ff3b30";
+    ctx.fillText(n,c.x,c.y);
+  });
+
+  added.forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.strokeStyle = "#34c759";
+    ctx.stroke();
+
+    ctx.fillStyle = "#34c759";
+    ctx.fillText("+",p.x,p.y);
+  });
+
+  $("count").textContent = n + added.length;
+}
+
+canvas.addEventListener("pointerdown", e=>{
+  if(!originalCanvas.width) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * canvas.width / rect.width;
+  const y = (e.clientY - rect.top) * canvas.height / rect.height;
+
+  let hit = -1;
+  let best = Infinity;
+
+  circles.forEach((c,i)=>{
+    if(removed.has(i)) return;
+
+    const d = Math.hypot(x-c.x,y-c.y);
+    if(d < c.r + 18 && d < best){
+      best = d;
+      hit = i;
+    }
+  });
+
+  if(hit >= 0){
+    removed.add(hit);
+  }else{
+    added.push({x,y,r:Number($("maxR").value) * 0.65});
+  }
+
+  draw();
+});
+
+function resetManual(){
+  removed.clear();
+  added = [];
+  draw();
+}
+
+function updateLabels(){
+  $("vSensitivity").textContent = $("sensitivity").value;
+  $("vMinR").textContent = $("minR").value;
+  $("vMaxR").textContent = $("maxR").value;
+  $("vMinDist").textContent = $("minDist").value;
+  $("vWhite").textContent = $("white").value;
+  $("vLine").textContent = $("line").value;
+}
+
+updateLabels();
+</script>
+</body>
+</html>
