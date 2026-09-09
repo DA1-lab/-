@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f172a">
+<title>棚卸しスキャナ UIモック</title>
+<style>
+  :root{
+    --bg:#0b1220;
+    --panel:#111827;
+    --panel2:#172033;
+    --text:#f8fafc;
+    --muted:#94a3b8;
+    --line:#2a3850;
+    --accent:#38bdf8;
+    --ok:#22c55e;
+    --warn:#f59e0b;
+    --key:#1e293b;
+    --key-active:#334155;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif}
+  body{min-height:100svh}
+  .app{
+    width:min(100%,480px);
+    min-height:100svh;
+    margin:0 auto;
+    display:flex;
+    flex-direction:column;
+    padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 12px);
+    gap:10px;
+  }
+  .topbar{display:flex;align-items:center;justify-content:space-between;height:42px}
+  .title{font-weight:800;font-size:20px;letter-spacing:.02em}
+  .sub{font-size:12px;color:var(--muted)}
+  .pill{font-size:12px;background:#162238;border:1px solid #26354d;border-radius:999px;padding:7px 10px;color:#cbd5e1}
+  .camera{
+    position:relative;
+    height:140px;
+    border:1px solid #334155;
+    border-radius:18px;
+    overflow:hidden;
+    background:
+      radial-gradient(circle at 50% 55%,rgba(56,189,248,.13),transparent 30%),
+      linear-gradient(135deg,#182238 0%,#0f172a 55%,#182238 100%);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .scan-target{
+    position:relative;
+    width:150px;
+    height:72px;
+    overflow:hidden;
+  }
+  .scan-target:before,.scan-target:after{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+  }
+  .scan-target:before{
+    border-top:4px solid #e2e8f0;
+    border-left:4px solid #e2e8f0;
+    width:38px;
+    height:38px;
+    border-radius:8px 0 0 0;
+  }
+  .scan-target:after{
+    left:auto;
+    top:auto;
+    right:0;
+    bottom:0;
+    border-right:4px solid #e2e8f0;
+    border-bottom:4px solid #e2e8f0;
+    width:38px;
+    height:38px;
+    border-radius:0 0 8px 0;
+  }
+  .scanline{
+    position:absolute;
+    left:10px;
+    top:50%;
+    width:130px;
+    height:2px;
+    transform:translateY(-50%);
+    background:#ef4444;
+    box-shadow:0 0 8px rgba(239,68,68,.75);
+  }
+    50%{transform:translateY(60px)}
+  }
+  .camera-label{position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#cbd5e1;font-size:12px}
+  .mock-badge{position:absolute;top:12px;right:12px;font-size:11px;background:rgba(15,23,42,.85);border:1px solid #334155;padding:5px 8px;border-radius:999px;color:#cbd5e1}
+
+  .drug{
+    background:var(--panel);
+    border:1px solid #243147;
+    border-radius:16px;
+    padding:14px;
+  }
+  .drug-head{display:flex;gap:10px;justify-content:space-between;align-items:flex-start}
+  .drug-name{font-weight:800;font-size:19px;line-height:1.35}
+  .drug-meta{margin-top:4px;color:var(--muted);font-size:13px}
+  .status{flex:none;font-size:12px;font-weight:800;border-radius:999px;padding:6px 9px}
+  .status.todo{background:rgba(245,158,11,.14);color:#fbbf24;border:1px solid rgba(245,158,11,.35)}
+  .status.done{background:rgba(34,197,94,.14);color:#4ade80;border:1px solid rgba(34,197,94,.35)}
+  .inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .field{
+    position:relative;
+    background:var(--panel2);
+    border:2px solid transparent;
+    border-radius:14px;
+    padding:10px 11px;
+    min-height:84px;
+  }
+  .field.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.09)}
+  .field-label{font-size:12px;color:#cbd5e1}
+  .field-value{font-size:32px;font-weight:900;line-height:1.05;margin-top:7px;font-variant-numeric:tabular-nums}
+  .field-unit{font-size:13px;color:var(--muted);margin-left:4px}
+  .total{margin-top:10px;text-align:right;color:#cbd5e1;font-size:13px}
+  .total b{color:#fff;font-size:17px}
+
+  .keypad{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    margin-top:auto;
+  }
+  button{
+    appearance:none;border:0;color:#fff;font:inherit;cursor:pointer;
+  }
+  .key{
+    min-height:58px;
+    border-radius:14px;
+    background:var(--key);
+    border:1px solid #314057;
+    font-size:25px;
+    font-weight:800;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  }
+  .key:active{background:var(--key-active);transform:scale(.985)}
+  .enter{background:#0369a1;border-color:#0284c7;font-size:18px}
+  .enter:active{background:#075985}
+  .clear{font-size:20px;color:#cbd5e1}
+  .footer{display:flex;gap:8px;margin-top:2px}
+  .ghost{
+    flex:1;min-height:42px;border-radius:12px;
+    background:#111827;border:1px solid #2a3850;color:#cbd5e1;font-size:13px
+  }
+  .toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 92px);
+    transform:translateX(-50%) translateY(20px);
+    opacity:0;pointer-events:none;
+    background:#020617;border:1px solid #334155;border-radius:999px;
+    padding:9px 14px;font-size:13px;transition:.2s;white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (max-height:780px){
+    .camera{height:120px}
+    .key{min-height:50px}
+    .field{min-height:76px}
+    .field-value{font-size:28px}
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div>
+      <div class="title">棚卸し</div>
+      <div class="sub">薬品棚モード</div>
+    </div>
+    <div class="pill">記録済 24品目</div>
+  </header>
+
+  <section class="camera" id="camera" aria-label="カメラモック">
+    <div class="scan-target"><div class="scanline"></div></div>
+    <div class="mock-badge">UIモック</div>
+    <div class="camera-label">バーコードを赤い線に合わせる<br>タップで読取テスト</div>
+  </section>
+
+  <section class="drug">
+    <div class="drug-head">
+      <div>
+        <div class="drug-name" id="drugName">アムロジピン錠5mg「サンプル」</div>
+        <div class="drug-meta" id="drugMeta">100錠包装 ・ GTIN 04900000000001</div>
+      </div>
+      <div class="status todo" id="status">未記録</div>
+    </div>
+
+    <div class="inputs">
+      <div class="field active" id="boxField">
+        <div class="field-label">未開封箱（@<span id="packA">100</span>錠）</div>
+        <div><span class="field-value" id="boxValue">0</span><span class="field-unit">箱</span></div>
+      </div>
+      <div class="field" id="openField">
+        <div class="field-label">開封箱（@<span id="packB">100</span>錠）</div>
+        <div><span class="field-value" id="openValue">0</span><span class="field-unit">錠</span></div>
+      </div>
+    </div>
+
+    <div class="total">合計 <b id="totalValue">0錠</b></div>
+  </section>
+
+  <section class="keypad">
+    <button class="key" data-num="1">1</button>
+    <button class="key" data-num="2">2</button>
+    <button class="key" data-num="3">3</button>
+    <button class="key" data-num="4">4</button>
+    <button class="key" data-num="5">5</button>
+    <button class="key" data-num="6">6</button>
+    <button class="key" data-num="7">7</button>
+    <button class="key" data-num="8">8</button>
+    <button class="key" data-num="9">9</button>
+    <button class="key clear" id="clear">⌫</button>
+    <button class="key" data-num="0">0</button>
+    <button class="key enter" id="enter">Enter</button>
+  </section>
+
+  <div class="footer">
+    <button class="ghost" id="reset">入力リセット</button>
+    <button class="ghost" id="toggleStatus">未/済 切替</button>
+  </div>
+</main>
+
+<div class="toast" id="toast">記録しました</div>
+
+<script>
+(() => {
+  const drugs = [
+    {name:'アムロジピン錠5mg「サンプル」', pack:100, gtin:'04900000000001'},
+    {name:'ロキソプロフェンNa錠60mg「サンプル」', pack:100, gtin:'04900000000002'},
+    {name:'メトホルミン塩酸塩錠500mg「サンプル」', pack:500, gtin:'04900000000003'}
+  ];
+  let drugIndex = 0;
+  let active = 'box';
+  let boxText = '0';
+  let openText = '0';
+
+  const $ = id => document.getElementById(id);
+  const boxField = $('boxField');
+  const openField = $('openField');
+
+  function drug(){ return drugs[drugIndex]; }
+
+  function render(){
+    $('drugName').textContent = drug().name;
+    $('drugMeta').textContent = `${drug().pack}錠包装 ・ GTIN ${drug().gtin}`;
+    $('packA').textContent = drug().pack;
+    $('packB').textContent = drug().pack;
+    $('boxValue').textContent = boxText;
+    $('openValue').textContent = openText;
+    boxField.classList.toggle('active', active === 'box');
+    openField.classList.toggle('active', active === 'open');
+    const total = (parseInt(boxText || '0',10) * drug().pack) + parseInt(openText || '0',10);
+    $('totalValue').textContent = `${total.toLocaleString()}錠`;
+  }
+
+  function append(n){
+    if(active === 'box') boxText = boxText === '0' ? n : boxText + n;
+    else openText = openText === '0' ? n : openText + n;
+    render();
+  }
+
+  function backspace(){
+    if(active === 'box') boxText = boxText.length <= 1 ? '0' : boxText.slice(0,-1);
+    else openText = openText.length <= 1 ? '0' : openText.slice(0,-1);
+    render();
+  }
+
+  function showToast(text){
+    const t = $('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),900);
+  }
+
+  document.querySelectorAll('[data-num]').forEach(b => {
+    b.addEventListener('click',()=>append(b.dataset.num));
+  });
+  $('clear').addEventListener('click',backspace);
+
+  boxField.addEventListener('click',()=>{active='box';render()});
+  openField.addEventListener('click',()=>{active='open';render()});
+
+  $('enter').addEventListener('click',()=>{
+    if(active === 'box'){
+      active = 'open';
+      render();
+      return;
+    }
+    $('status').textContent = '記録済';
+    $('status').className = 'status done';
+    showToast(`記録：${boxText}箱 + ${openText}錠`);
+    if(navigator.vibrate) navigator.vibrate(40);
+    active = 'box';
+    render();
+  });
+
+  $('camera').addEventListener('click',()=>{
+    drugIndex = (drugIndex + 1) % drugs.length;
+    boxText = '0';
+    openText = '0';
+    active = 'box';
+    $('status').textContent = '未記録';
+    $('status').className = 'status todo';
+    render();
+    showToast('バーコード読取を模擬しました');
+  });
+
+  $('reset').addEventListener('click',()=>{
+    boxText='0'; openText='0'; active='box';
+    render();
+  });
+
+  $('toggleStatus').addEventListener('click',()=>{
+    const s = $('status');
+    const done = s.textContent === '記録済';
+    s.textContent = done ? '未記録' : '記録済';
+    s.className = done ? 'status todo' : 'status done';
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
