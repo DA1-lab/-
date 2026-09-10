@@ -418,7 +418,7 @@ button{
     <button class="key" data-key="4">4</button>
     <button class="key" data-key="5">5</button>
     <button class="key" data-key="6">6</button>
-    <button class="key op" data-key="*">*</button>
+    <button class="key op" data-key="×">×</button>
 
     <button class="key" data-key="7">7</button>
     <button class="key" data-key="8">8</button>
@@ -486,7 +486,7 @@ button{
     if (!s) return 0;
     if (!/^\d+(?:[+*]\d+)*$/.test(s)) throw new Error("式が不正です");
 
-    // * を先に計算し、その後 + を計算
+    // 掛け算を先に計算し、その後に加算
     return s.split("+").reduce((sum, term) => {
       const product = term.split("*").reduce((a,b) => a * Number(b), 1);
       return sum + product;
@@ -542,6 +542,9 @@ button{
     if (product?.pack){
       const total = value.box * product.pack + value.open;
       $("totalValue").textContent = `${total.toLocaleString()} ${unit()}`;
+    }else if (currentCode){
+      // 包装数が未登録でも、入力値が反映されていることは確認できるようにする
+      $("totalValue").textContent = `${value.box}箱 + ${value.open}${unit()}`;
     }else{
       $("totalValue").textContent = "—";
     }
@@ -553,7 +556,7 @@ button{
     expr[which] = next;
 
     try{
-      if (/^\d+(?:[+*]\d+)*$/.test(next)){
+      if (/^\d+(?:[+×]\d+)*$/.test(next)){
         value[which] = safeCalc(next);
       }else if (/^\d+$/.test(next)){
         value[which] = Number(next);
@@ -581,9 +584,9 @@ button{
       return;
     }
 
-    if (key === "+" || key === "*"){
+    if (key === "+" || key === "×"){
       if (!s) s = String(value[which] || 0);
-      if (/[+*]$/.test(s)){
+      if (/[+×]$/.test(s)){
         s = s.slice(0,-1) + key;
       }else{
         s += key;
