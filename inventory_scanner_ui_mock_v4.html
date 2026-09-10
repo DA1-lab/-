@@ -4,328 +4,430 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0d12">
 <title>棚卸しスキャナ</title>
 
 <style>
-  :root{
-    --bg:#0b1220;
-    --panel:#111827;
-    --panel2:#172033;
-    --text:#f8fafc;
-    --muted:#94a3b8;
-    --accent:#38bdf8;
-    --ok:#22c55e;
-    --warn:#f59e0b;
-    --key:#1e293b;
-    --key-active:#334155;
-  }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{
-    margin:0;
-    background:var(--bg);
-    color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif;
-  }
-  body{min-height:100svh}
-  .app{
-    width:min(100%,480px);
-    min-height:100svh;
-    margin:0 auto;
-    display:flex;
-    flex-direction:column;
-    padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 12px);
-    gap:10px;
-  }
-  .topbar{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    min-height:42px;
-  }
-  .title{font-weight:800;font-size:20px;letter-spacing:.02em}
-  .sub{font-size:12px;color:var(--muted)}
-  .pill{
-    font-size:12px;
-    background:#162238;
-    border:1px solid #26354d;
-    border-radius:999px;
-    padding:7px 10px;
-    color:#cbd5e1;
-  }
+:root{
+  --bg:#0a0d12;
+  --panel:#11161d;
+  --panel2:#171e27;
+  --line:#273240;
+  --text:#f8fafc;
+  --muted:#93a4b8;
+  --accent:#2f9bff;
+  --red:#ef4444;
+  --ok:#35d07f;
+  --warn:#ffbf47;
+}
 
-  /* Camera */
-  .camera{
-    position:relative;
-    height:140px;
-    border:1px solid #334155;
-    border-radius:18px;
-    overflow:hidden;
-    background:#020617;
-  }
-  #cameraVideo{
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    background:#020617;
-  }
-  .scanline{
-    position:absolute;
-    z-index:3;
-    left:10%;
-    right:10%;
-    top:50%;
-    height:2px;
-    transform:translateY(-50%);
-    background:#ef4444;
-    box-shadow:0 0 8px rgba(239,68,68,.85);
-    pointer-events:none;
-  }
-  .camera-action{
-    position:absolute;
-    z-index:5;
-    inset:0;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    background:rgba(2,6,23,.68);
-  }
-  .camera-action.show{display:flex}
-  .camera-action button{
-    border:1px solid #475569;
-    border-radius:12px;
-    background:#172033;
-    color:#fff;
-    padding:11px 16px;
-    font-size:15px;
-    font-weight:700;
-  }
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
 
-  /* Drug */
-  .drug{
-    background:var(--panel);
-    border:1px solid #243147;
-    border-radius:16px;
-    padding:14px;
-  }
-  .drug-head{
-    display:flex;
-    gap:10px;
-    justify-content:space-between;
-    align-items:flex-start;
-  }
-  .drug-name{
-    font-weight:800;
-    font-size:19px;
-    line-height:1.35;
-  }
-  .drug-meta{
-    margin-top:4px;
-    color:var(--muted);
-    font-size:13px;
-    overflow-wrap:anywhere;
-  }
-  .status{
-    flex:none;
-    font-size:12px;
-    font-weight:800;
-    border-radius:999px;
-    padding:6px 9px;
-  }
-  .status.todo{
-    background:rgba(245,158,11,.14);
-    color:#fbbf24;
-    border:1px solid rgba(245,158,11,.35);
-  }
-  .status.done{
-    background:rgba(34,197,94,.14);
-    color:#4ade80;
-    border:1px solid rgba(34,197,94,.35);
-  }
+html,body{
+  width:100%;
+  height:100%;
+  margin:0;
+  overflow:hidden;
+  overscroll-behavior:none;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif;
+}
 
-  .inputs{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:10px;
-    margin-top:12px;
-  }
-  .field{
-    position:relative;
-    background:var(--panel2);
-    border:2px solid transparent;
-    border-radius:14px;
-    padding:10px 11px;
-    min-height:84px;
-  }
-  .field.active{
-    border-color:var(--accent);
-    box-shadow:0 0 0 3px rgba(56,189,248,.09);
-  }
-  .field-label{font-size:12px;color:#cbd5e1}
-  .field-value{
-    font-size:32px;
-    font-weight:900;
-    line-height:1.05;
-    margin-top:7px;
-    font-variant-numeric:tabular-nums;
-  }
-  .field-unit{
-    font-size:13px;
-    color:var(--muted);
-    margin-left:4px;
-  }
-  .total{
-    margin-top:10px;
-    text-align:right;
-    color:#cbd5e1;
-    font-size:13px;
-  }
-  .total b{color:#fff;font-size:17px}
+body{
+  touch-action:manipulation;
+}
 
-  /* Keypad */
-  .keypad{
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:8px;
-    margin-top:auto;
-  }
-  button{
-    appearance:none;
-    border:0;
-    color:#fff;
-    font:inherit;
-    cursor:pointer;
-  }
-  .key{
-    min-height:58px;
-    border-radius:14px;
-    background:var(--key);
-    border:1px solid #314057;
-    font-size:25px;
-    font-weight:800;
-  }
-  .key:active{
-    background:var(--key-active);
-    transform:scale(.985);
-  }
-  .enter{
-    background:#0369a1;
-    border-color:#0284c7;
-    font-size:18px;
-  }
-  .enter:active{background:#075985}
-  .clear{font-size:20px;color:#cbd5e1}
+button{
+  font:inherit;
+  color:inherit;
+  border:0;
+  appearance:none;
+}
 
-  .footer{display:flex;gap:8px;margin-top:2px}
-  .ghost{
-    flex:1;
-    min-height:42px;
-    border-radius:12px;
-    background:#111827;
-    border:1px solid #2a3850;
-    color:#cbd5e1;
-    font-size:13px;
-  }
+.app{
+  width:min(100%,520px);
+  height:100svh;
+  height:100dvh;
+  margin:0 auto;
+  padding:
+    calc(env(safe-area-inset-top) + 8px)
+    10px
+    calc(env(safe-area-inset-bottom) + 8px);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  overflow:hidden;
+}
 
-  .toast{
-    position:fixed;
-    z-index:20;
-    left:50%;
-    bottom:calc(env(safe-area-inset-bottom) + 92px);
-    transform:translateX(-50%) translateY(20px);
-    opacity:0;
-    pointer-events:none;
-    background:#020617;
-    border:1px solid #334155;
-    border-radius:999px;
-    padding:9px 14px;
-    font-size:13px;
-    transition:.2s;
-    white-space:nowrap;
-  }
-  .toast.show{
-    opacity:1;
-    transform:translateX(-50%) translateY(0);
-  }
+/* 固定領域 */
+.header,
+.drug,
+.entry,
+.total,
+.keypad{
+  flex:0 0 auto;
+}
 
-  @media (max-height:780px){
-    .camera{height:120px}
-    .key{min-height:50px}
-    .field{min-height:76px}
-    .field-value{font-size:28px}
-  }
+/* 余った高さだけカメラが伸びる */
+.camera{
+  flex:1 1 auto;
+  min-height:105px;
+  max-height:260px;
+  position:relative;
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:15px;
+  background:#05080d;
+}
+
+#cameraVideo{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.scanline{
+  position:absolute;
+  z-index:3;
+  left:7%;
+  right:7%;
+  top:50%;
+  height:2px;
+  transform:translateY(-50%);
+  background:var(--red);
+  box-shadow:0 0 8px rgba(239,68,68,.9);
+  pointer-events:none;
+}
+
+.cameraOverlay{
+  position:absolute;
+  inset:0;
+  z-index:4;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(5,8,13,.68);
+}
+
+.cameraOverlay.show{display:flex}
+
+.cameraOverlay button{
+  padding:10px 15px;
+  border-radius:11px;
+  border:1px solid #445063;
+  background:#172033;
+  font-weight:800;
+}
+
+.header{
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 4px;
+}
+
+.headerTitle{
+  font-size:20px;
+  font-weight:900;
+}
+
+.counter{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.drug{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  background:var(--panel);
+  border:1px solid #202a36;
+  border-radius:14px;
+  padding:10px 12px;
+  min-height:68px;
+}
+
+.drugName{
+  font-size:17px;
+  font-weight:900;
+  line-height:1.25;
+  max-height:44px;
+  overflow:hidden;
+}
+
+.drugMeta{
+  margin-top:3px;
+  font-size:11px;
+  color:var(--muted);
+  overflow-wrap:anywhere;
+}
+
+.status{
+  flex:none;
+  padding:5px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  background:#3a2710;
+  color:var(--warn);
+  border:1px solid #65461d;
+}
+
+.status.done{
+  background:#113520;
+  color:#76e7a1;
+  border-color:#23683e;
+}
+
+.entry{
+  min-height:70px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 44%;
+  gap:8px;
+  align-items:center;
+  background:var(--panel);
+  border:1px solid #202a36;
+  border-radius:14px;
+  padding:9px 11px;
+}
+
+.entry.active{
+  border:2px solid var(--accent);
+  padding:8px 10px;
+  background:#102039;
+}
+
+.entryLabel{
+  font-size:16px;
+  font-weight:900;
+}
+
+.entrySub{
+  margin-top:2px;
+  color:var(--muted);
+  font-size:11px;
+}
+
+.entryValue{
+  text-align:right;
+  font-size:31px;
+  font-weight:950;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+
+.unit{
+  margin-left:4px;
+  font-size:12px;
+  color:#cbd5e1;
+}
+
+.expr{
+  margin-top:2px;
+  font-size:12px;
+  color:#a9bdd6;
+  font-weight:700;
+  min-height:15px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.total{
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--panel);
+  border:1px solid #202a36;
+  border-radius:13px;
+  padding:8px 12px;
+}
+
+.totalLabel{
+  font-size:16px;
+  font-weight:900;
+}
+
+.totalValue{
+  font-size:26px;
+  font-weight:950;
+}
+
+.keypad{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  grid-template-rows:repeat(4,minmax(48px,1fr));
+  gap:6px;
+  min-height:226px;
+  max-height:286px;
+}
+
+.key{
+  min-width:0;
+  border-radius:12px;
+  border:1px solid #344151;
+  background:#1b2532;
+  font-size:24px;
+  font-weight:900;
+}
+
+.key:active{
+  transform:scale(.985);
+  background:#263345;
+}
+
+.op{
+  background:#152638;
+  font-size:27px;
+}
+
+.back{
+  background:#171e27;
+  font-size:21px;
+}
+
+.zero{
+  grid-column:span 2;
+}
+
+.enter{
+  grid-column:span 2;
+  background:#1677e8;
+  border-color:#258cff;
+  font-size:20px;
+}
+
+.enter:active{
+  background:#0f67cb;
+}
+
+.toast{
+  position:fixed;
+  z-index:50;
+  left:50%;
+  bottom:calc(env(safe-area-inset-bottom) + 12px);
+  transform:translate(-50%,15px);
+  opacity:0;
+  pointer-events:none;
+  background:#020617;
+  border:1px solid #334155;
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:12px;
+  transition:.18s;
+  white-space:nowrap;
+}
+
+.toast.show{
+  opacity:1;
+  transform:translate(-50%,0);
+}
+
+/* 小さい画面でもスクロールさせず、カメラだけ先に縮む */
+@media (max-height:760px){
+  .app{gap:6px}
+  .camera{min-height:78px;max-height:160px}
+  .drug{min-height:60px;padding:8px 10px}
+  .drugName{font-size:16px}
+  .entry{min-height:62px}
+  .entryValue{font-size:28px}
+  .total{min-height:42px}
+  .totalValue{font-size:23px}
+  .keypad{min-height:210px;gap:5px}
+  .key{font-size:22px}
+}
+
+@media (max-height:680px){
+  .camera{min-height:60px}
+  .header{min-height:36px}
+  .drug{min-height:54px}
+  .entry{min-height:56px}
+  .keypad{min-height:196px}
+}
 </style>
 </head>
 
 <body>
 <main class="app">
-  <header class="topbar">
-    <div>
-      <div class="title">棚卸し</div>
-      <div class="sub">薬品棚モード</div>
-    </div>
-    <div class="pill" id="recordCount">記録済 0品目</div>
+
+  <header class="header">
+    <div class="headerTitle">棚卸し</div>
+    <div class="counter" id="counter">記録済 0品目</div>
   </header>
 
-  <section class="camera" aria-label="バーコードカメラ">
+  <section class="camera">
     <video id="cameraVideo" autoplay muted playsinline></video>
-    <div class="scanline" aria-hidden="true"></div>
-    <div class="camera-action" id="cameraAction">
-      <button type="button" id="cameraRetry">カメラ開始</button>
+    <div class="scanline"></div>
+    <div class="cameraOverlay" id="cameraOverlay">
+      <button type="button" id="cameraStart">カメラ開始</button>
     </div>
   </section>
 
   <section class="drug">
-    <div class="drug-head">
-      <div>
-        <div class="drug-name" id="drugName">バーコード待機中</div>
-        <div class="drug-meta" id="drugMeta">—</div>
-      </div>
-      <div class="status todo" id="status">未記録</div>
+    <div>
+      <div class="drugName" id="drugName">バーコード待機中</div>
+      <div class="drugMeta" id="drugMeta">—</div>
     </div>
+    <div class="status" id="status">未記録</div>
+  </section>
 
-    <div class="inputs">
-      <div class="field active" id="boxField">
-        <div class="field-label">未開封箱（@<span id="packA">—</span>錠）</div>
-        <div>
-          <span class="field-value" id="boxValue">0</span>
-          <span class="field-unit">箱</span>
-        </div>
-      </div>
-
-      <div class="field" id="openField">
-        <div class="field-label">開封箱（@<span id="packB">—</span>錠）</div>
-        <div>
-          <span class="field-value" id="openValue">0</span>
-          <span class="field-unit">錠</span>
-        </div>
-      </div>
+  <section class="entry active" id="boxEntry">
+    <div>
+      <div class="entryLabel">未開封箱</div>
+      <div class="entrySub">@<span id="packBox">—</span></div>
+      <div class="expr" id="boxExpr"></div>
     </div>
+    <div class="entryValue">
+      <span id="boxValue">0</span><span class="unit">箱</span>
+    </div>
+  </section>
 
-    <div class="total">合計 <b id="totalValue">—</b></div>
+  <section class="entry" id="openEntry">
+    <div>
+      <div class="entryLabel">開封箱内</div>
+      <div class="entrySub">@<span id="packOpen">—</span></div>
+      <div class="expr" id="openExpr"></div>
+    </div>
+    <div class="entryValue">
+      <span id="openValue">0</span><span class="unit" id="openUnit">錠</span>
+    </div>
+  </section>
+
+  <section class="total">
+    <div class="totalLabel">合計</div>
+    <div class="totalValue" id="totalValue">—</div>
   </section>
 
   <section class="keypad">
-    <button class="key" data-num="1">1</button>
-    <button class="key" data-num="2">2</button>
-    <button class="key" data-num="3">3</button>
-    <button class="key" data-num="4">4</button>
-    <button class="key" data-num="5">5</button>
-    <button class="key" data-num="6">6</button>
-    <button class="key" data-num="7">7</button>
-    <button class="key" data-num="8">8</button>
-    <button class="key" data-num="9">9</button>
-    <button class="key clear" id="clear">⌫</button>
-    <button class="key" data-num="0">0</button>
-    <button class="key enter" id="enter">Enter</button>
+    <button class="key" data-key="1">1</button>
+    <button class="key" data-key="2">2</button>
+    <button class="key" data-key="3">3</button>
+    <button class="key back" data-key="⌫">⌫</button>
+
+    <button class="key" data-key="4">4</button>
+    <button class="key" data-key="5">5</button>
+    <button class="key" data-key="6">6</button>
+    <button class="key op" data-key="+">+</button>
+
+    <button class="key" data-key="7">7</button>
+    <button class="key" data-key="8">8</button>
+    <button class="key" data-key="9">9</button>
+    <button class="key op" data-key="×">×</button>
+
+    <button class="key zero" data-key="0">0</button>
+    <button class="key enter" data-key="Enter">Enter</button>
   </section>
 
-  <div class="footer">
-    <button class="ghost" id="reset">入力リセット</button>
-    <button class="ghost" id="restartCamera">カメラ再起動</button>
-  </div>
 </main>
 
 <div class="toast" id="toast"></div>
@@ -336,303 +438,332 @@
   const $ = id => document.getElementById(id);
 
   /*
-   * 商品マスタは後でODSS等から取り込む想定。
-   * key = 読み取ったGTIN/JAN等
-   * pack = 1箱あたりの錠数
-   *
-   * 例:
-   * const PRODUCT_MASTER = {
-   *   "04912345678901": { name:"薬品名", pack:100 }
-   * };
+   * 後でODSS等の商品マスタに置換する。
+   * pack = 1箱あたり数量
+   * unit = 錠 / 包 / カプセル 等
    */
-  const PRODUCT_MASTER = {};
+  const PRODUCT_MASTER = {
+    // UI確認用のサンプル。
+    // 実際のバーコードに合わせて追加可。
+    "4987138461234": {
+      name: "ツムラ大建中湯エキス顆粒",
+      pack: 42,
+      unit: "包"
+    }
+  };
 
   const records = new Map();
 
   let currentCode = "";
-  let currentRawCode = "";
-  let currentProduct = null;
+  let product = null;
   let active = "box";
-  let boxText = "0";
-  let openText = "0";
+  let expr = { box:"", open:"" };
+  let value = { box:0, open:0 };
 
-  let reader = null;
   let scannerControls = null;
   let scanLocked = false;
-  let lastAcceptedCode = "";
-  let lastAcceptedAt = 0;
+  let lastCode = "";
+  let lastAt = 0;
 
-  const video = $("cameraVideo");
-  const boxField = $("boxField");
-  const openField = $("openField");
-
-  function normalizeCode(raw) {
+  function normalizeCode(raw){
     const s = String(raw || "").trim();
 
-    // GS1 human-readable form: (01)xxxxxxxxxxxxxx
-    const ai01Paren = s.match(/\(01\)\s*(\d{14})/);
-    if (ai01Paren) return ai01Paren[1];
+    const p = s.match(/\(01\)\s*(\d{14})/);
+    if (p) return p[1];
 
-    // FNC1/GS1文字列内に 01 + 14桁 が含まれる場合
-    const ai01 = s.match(/(?:^|[^\d])01(\d{14})(?:[^\d]|$)/);
-    if (ai01) return ai01[1];
-
-    // JAN/EAN/GTINそのもの
-    const digitsOnly = s.replace(/\s+/g, "");
-    if (/^\d{8}$|^\d{12}$|^\d{13}$|^\d{14}$/.test(digitsOnly)) {
-      return digitsOnly;
-    }
+    const digits = s.replace(/\s+/g,"");
+    if (/^\d{8}$|^\d{12}$|^\d{13}$|^\d{14}$/.test(digits)) return digits;
 
     return s;
   }
 
-  function getProduct(code) {
-    return PRODUCT_MASTER[code] || null;
+  function safeCalc(input){
+    const s = String(input || "")
+      .replace(/\s/g,"")
+      .replace(/[xX＊*]/g,"×");
+
+    if (!s) return 0;
+    if (!/^\d+(?:[+×]\d+)*$/.test(s)) throw new Error("式が不正です");
+
+    // × を先に計算し、その後 + を計算
+    return s.split("+").reduce((sum, term) => {
+      const product = term.split("×").reduce((a,b) => a * Number(b), 1);
+      return sum + product;
+    }, 0);
   }
 
-  function render() {
-    const existing = currentCode ? records.get(currentCode) : null;
-
-    if (!currentCode) {
-      $("drugName").textContent = "バーコード待機中";
-      $("drugMeta").textContent = "—";
-      $("status").textContent = "未記録";
-      $("status").className = "status todo";
-      $("packA").textContent = "—";
-      $("packB").textContent = "—";
-    } else {
-      $("drugName").textContent = currentProduct?.name || "未登録薬品";
-      $("drugMeta").textContent =
-        `${currentProduct?.pack ? currentProduct.pack + "錠包装 ・ " : ""}コード ${currentCode}`;
-
-      $("status").textContent = existing ? "記録済" : "未記録";
-      $("status").className = existing ? "status done" : "status todo";
-
-      const packLabel = currentProduct?.pack ?? "—";
-      $("packA").textContent = packLabel;
-      $("packB").textContent = packLabel;
-    }
-
-    $("boxValue").textContent = boxText;
-    $("openValue").textContent = openText;
-
-    boxField.classList.toggle("active", active === "box");
-    openField.classList.toggle("active", active === "open");
-
-    if (currentProduct?.pack) {
-      const total =
-        parseInt(boxText || "0", 10) * currentProduct.pack +
-        parseInt(openText || "0", 10);
-      $("totalValue").textContent = `${total.toLocaleString()}錠`;
-    } else {
-      $("totalValue").textContent = "—";
-    }
-
-    $("recordCount").textContent = `記録済 ${records.size}品目`;
+  function currentPack(){
+    return product?.pack || null;
   }
 
-  function showToast(text, ms = 1000) {
+  function unit(){
+    return product?.unit || "錠";
+  }
+
+  function showToast(text, ms=850){
     const t = $("toast");
     t.textContent = text;
     t.classList.add("show");
     clearTimeout(showToast._timer);
-    showToast._timer = setTimeout(() => t.classList.remove("show"), ms);
+    showToast._timer = setTimeout(()=>t.classList.remove("show"), ms);
   }
 
-  function appendNumber(n) {
-    if (!currentCode) return;
+  function render(){
+    const existing = currentCode ? records.get(currentCode) : null;
 
-    if (active === "box") {
-      boxText = boxText === "0" ? n : boxText + n;
-    } else {
-      openText = openText === "0" ? n : openText + n;
+    if (!currentCode){
+      $("drugName").textContent = "バーコード待機中";
+      $("drugMeta").textContent = "—";
+      $("status").textContent = "未記録";
+      $("status").className = "status";
+      $("packBox").textContent = "—";
+      $("packOpen").textContent = "—";
+      $("openUnit").textContent = "錠";
+    }else{
+      $("drugName").textContent = product?.name || "未登録薬品";
+      $("drugMeta").textContent = `コード ${currentCode}`;
+      $("status").textContent = existing ? "記録済" : "未記録";
+      $("status").className = existing ? "status done" : "status";
+      $("packBox").textContent = product?.pack ? `${product.pack}${unit()}` : "—";
+      $("packOpen").textContent = product?.pack ? `${product.pack}${unit()}` : "—";
+      $("openUnit").textContent = unit();
     }
+
+    $("boxEntry").classList.toggle("active", active==="box");
+    $("openEntry").classList.toggle("active", active==="open");
+
+    $("boxValue").textContent = value.box;
+    $("openValue").textContent = value.open;
+
+    $("boxExpr").textContent = expr.box && expr.box !== String(value.box) ? expr.box : "";
+    $("openExpr").textContent = expr.open && expr.open !== String(value.open) ? expr.open : "";
+
+    if (product?.pack){
+      const total = value.box * product.pack + value.open;
+      $("totalValue").textContent = `${total.toLocaleString()} ${unit()}`;
+    }else{
+      $("totalValue").textContent = "—";
+    }
+
+    $("counter").textContent = `記録済 ${records.size}品目`;
+  }
+
+  function setExpression(which, next){
+    expr[which] = next;
+
+    try{
+      if (/^\d+(?:[+×]\d+)*$/.test(next)){
+        value[which] = safeCalc(next);
+      }else if (/^\d+$/.test(next)){
+        value[which] = Number(next);
+      }
+    }catch(_){}
+
     render();
   }
 
-  function backspace() {
+  function press(key){
     if (!currentCode) return;
 
-    if (active === "box") {
-      boxText = boxText.length <= 1 ? "0" : boxText.slice(0, -1);
-    } else {
-      openText = openText.length <= 1 ? "0" : openText.slice(0, -1);
+    const which = active;
+    let s = expr[which];
+
+    if (key === "⌫"){
+      s = s.slice(0,-1);
+      if (!s){
+        expr[which] = "";
+        value[which] = 0;
+        render();
+        return;
+      }
+      setExpression(which, s);
+      return;
     }
-    render();
+
+    if (key === "+" || key === "×"){
+      if (!s) s = String(value[which] || 0);
+      if (/[+×]$/.test(s)){
+        s = s.slice(0,-1) + key;
+      }else{
+        s += key;
+      }
+      setExpression(which, s);
+      return;
+    }
+
+    if (/^\d$/.test(key)){
+      if (!s || s === "0") s = key;
+      else s += key;
+      setExpression(which, s);
+      return;
+    }
+
+    if (key === "Enter"){
+      if (s){
+        try{
+          value[which] = safeCalc(s);
+          expr[which] = s;
+        }catch(e){
+          showToast("式を確認してください");
+          return;
+        }
+      }
+
+      if (which === "box"){
+        active = "open";
+        render();
+        return;
+      }
+
+      saveRecord();
+    }
   }
 
-  function acceptBarcode(rawCode) {
-    const code = normalizeCode(rawCode);
+  function saveRecord(){
+    if (!currentCode) return;
+
+    records.set(currentCode,{
+      code:currentCode,
+      name:product?.name || "",
+      pack:product?.pack || null,
+      unit:unit(),
+      box:value.box,
+      open:value.open,
+      boxExpr:expr.box,
+      openExpr:expr.open,
+      updatedAt:new Date().toISOString()
+    });
+
+    if (navigator.vibrate) navigator.vibrate([30,25,30]);
+    showToast("記録しました");
+    render();
+
+    setTimeout(()=>{
+      currentCode = "";
+      product = null;
+      active = "box";
+      expr = {box:"",open:""};
+      value = {box:0,open:0};
+      scanLocked = false;
+      render();
+    },500);
+  }
+
+  function acceptBarcode(raw){
+    const code = normalizeCode(raw);
     if (!code || scanLocked) return;
 
     const now = Date.now();
-    if (code === lastAcceptedCode && now - lastAcceptedAt < 1800) return;
+    if (code === lastCode && now-lastAt < 1500) return;
 
     scanLocked = true;
-    lastAcceptedCode = code;
-    lastAcceptedAt = now;
+    lastCode = code;
+    lastAt = now;
 
-    currentRawCode = rawCode;
     currentCode = code;
-    currentProduct = getProduct(code);
+    product = PRODUCT_MASTER[code] || null;
 
     const existing = records.get(code);
-    boxText = existing ? String(existing.box) : "0";
-    openText = existing ? String(existing.open) : "0";
+    if (existing){
+      value.box = existing.box || 0;
+      value.open = existing.open || 0;
+      expr.box = existing.boxExpr || String(value.box);
+      expr.open = existing.openExpr || String(value.open);
+    }else{
+      value = {box:0,open:0};
+      expr = {box:"",open:""};
+    }
+
     active = "box";
-
     render();
 
-    if (navigator.vibrate) navigator.vibrate(35);
-    showToast(currentProduct ? currentProduct.name : `読取 ${code}`, 900);
+    if (navigator.vibrate) navigator.vibrate(25);
+    showToast(`読取 ${code}`);
+
+    // 数量入力中に別コードへ飛ばないようロックは保存まで維持
   }
 
-  function finishRecord() {
-    if (!currentCode) return;
-
-    records.set(currentCode, {
-      code: currentCode,
-      rawCode: currentRawCode,
-      name: currentProduct?.name || "",
-      pack: currentProduct?.pack || null,
-      box: parseInt(boxText || "0", 10),
-      open: parseInt(openText || "0", 10),
-      updatedAt: new Date().toISOString()
-    });
-
-    render();
-    if (navigator.vibrate) navigator.vibrate([30, 30, 30]);
-    showToast("記録しました", 800);
-
-    // 同じ箱を向けたまま再読取しないよう少し待ってから解放
-    const justRecorded = currentCode;
-    setTimeout(() => {
-      scanLocked = false;
-      lastAcceptedCode = justRecorded;
-      lastAcceptedAt = Date.now();
-
-      currentCode = "";
-      currentRawCode = "";
-      currentProduct = null;
-      boxText = "0";
-      openText = "0";
-      active = "box";
-      render();
-    }, 650);
-  }
-
-  async function stopScanner() {
-    try {
-      if (scannerControls) scannerControls.stop();
-    } catch (_) {}
+  async function stopScanner(){
+    try{
+      scannerControls?.stop();
+    }catch(_){}
     scannerControls = null;
 
-    try {
-      const stream = video.srcObject;
-      if (stream && stream.getTracks) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    } catch (_) {}
+    try{
+      const stream = $("cameraVideo").srcObject;
+      stream?.getTracks?.().forEach(t=>t.stop());
+    }catch(_){}
 
-    video.srcObject = null;
+    $("cameraVideo").srcObject = null;
   }
 
-  function cameraErrorMessage(err) {
-    if (!window.isSecureContext) {
-      return "HTTPSで開いてください";
-    }
-    if (err?.name === "NotAllowedError") {
-      return "カメラを許可してください";
-    }
-    if (err?.name === "NotFoundError") {
-      return "カメラが見つかりません";
-    }
-    return "カメラを開始できません";
-  }
-
-  async function startScanner() {
+  async function startScanner(){
     await stopScanner();
 
-    if (!navigator.mediaDevices?.getUserMedia || !window.ZXingBrowser) {
-      $("cameraRetry").textContent = !window.isSecureContext
-        ? "HTTPSで開いてください"
-        : "カメラを開始できません";
-      $("cameraAction").classList.add("show");
+    if (!window.isSecureContext){
+      $("cameraStart").textContent = "HTTPSで開いてください";
+      $("cameraOverlay").classList.add("show");
       return;
     }
 
-    $("cameraAction").classList.remove("show");
+    if (!navigator.mediaDevices?.getUserMedia || !window.ZXingBrowser){
+      $("cameraStart").textContent = "カメラを開始できません";
+      $("cameraOverlay").classList.add("show");
+      return;
+    }
 
-    try {
-      reader = new ZXingBrowser.BrowserMultiFormatReader();
+    $("cameraOverlay").classList.remove("show");
+
+    try{
+      const reader = new ZXingBrowser.BrowserMultiFormatReader();
 
       scannerControls = await reader.decodeFromConstraints(
         {
-          audio: false,
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+          audio:false,
+          video:{
+            facingMode:{ideal:"environment"},
+            width:{ideal:1280},
+            height:{ideal:720}
           }
         },
-        video,
-        (result) => {
-          if (!result) return;
-          acceptBarcode(result.getText());
+        $("cameraVideo"),
+        result=>{
+          if (result) acceptBarcode(result.getText());
         }
       );
-    } catch (err) {
+    }catch(err){
       console.error(err);
-      $("cameraRetry").textContent = cameraErrorMessage(err);
-      $("cameraAction").classList.add("show");
+      $("cameraStart").textContent =
+        err?.name === "NotAllowedError"
+          ? "カメラを許可してください"
+          : "カメラ開始";
+      $("cameraOverlay").classList.add("show");
     }
   }
 
-  document.querySelectorAll("[data-num]").forEach(btn => {
-    btn.addEventListener("click", () => appendNumber(btn.dataset.num));
+  document.querySelectorAll("[data-key]").forEach(btn=>{
+    btn.addEventListener("click",()=>press(btn.dataset.key));
   });
 
-  $("clear").addEventListener("click", backspace);
-
-  boxField.addEventListener("click", () => {
-    active = "box";
+  $("boxEntry").addEventListener("click",()=>{
+    active="box";
     render();
   });
 
-  openField.addEventListener("click", () => {
-    active = "open";
+  $("openEntry").addEventListener("click",()=>{
+    active="open";
     render();
   });
 
-  $("enter").addEventListener("click", () => {
-    if (!currentCode) return;
+  $("cameraStart").addEventListener("click",startScanner);
 
-    if (active === "box") {
-      active = "open";
-      render();
-      return;
-    }
-
-    finishRecord();
-  });
-
-  $("reset").addEventListener("click", () => {
-    boxText = "0";
-    openText = "0";
-    active = "box";
-    render();
-  });
-
-  $("restartCamera").addEventListener("click", startScanner);
-  $("cameraRetry").addEventListener("click", startScanner);
-
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && !scannerControls) {
+  document.addEventListener("visibilitychange",()=>{
+    if (document.visibilityState==="visible" && !scannerControls){
       startScanner();
     }
   });
 
-  window.addEventListener("pagehide", stopScanner);
+  window.addEventListener("pagehide",stopScanner);
 
   render();
   startScanner();
