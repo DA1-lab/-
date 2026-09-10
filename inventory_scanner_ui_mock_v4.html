@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0d12">
@@ -47,6 +47,7 @@ button{
   color:inherit;
   border:0;
   appearance:none;
+  touch-action:manipulation;
 }
 
 .app{
@@ -417,12 +418,12 @@ button{
     <button class="key" data-key="4">4</button>
     <button class="key" data-key="5">5</button>
     <button class="key" data-key="6">6</button>
-    <button class="key op" data-key="+">+</button>
+    <button class="key op" data-key="*">*</button>
 
     <button class="key" data-key="7">7</button>
     <button class="key" data-key="8">8</button>
     <button class="key" data-key="9">9</button>
-    <button class="key op" data-key="×">×</button>
+    <button class="key op" data-key="+">+</button>
 
     <button class="key zero" data-key="0">0</button>
     <button class="key enter" data-key="Enter">Enter</button>
@@ -480,14 +481,14 @@ button{
   function safeCalc(input){
     const s = String(input || "")
       .replace(/\s/g,"")
-      .replace(/[xX＊*]/g,"×");
+      .replace(/[xX×＊]/g,"*");
 
     if (!s) return 0;
-    if (!/^\d+(?:[+×]\d+)*$/.test(s)) throw new Error("式が不正です");
+    if (!/^\d+(?:[+*]\d+)*$/.test(s)) throw new Error("式が不正です");
 
-    // × を先に計算し、その後 + を計算
+    // * を先に計算し、その後 + を計算
     return s.split("+").reduce((sum, term) => {
-      const product = term.split("×").reduce((a,b) => a * Number(b), 1);
+      const product = term.split("*").reduce((a,b) => a * Number(b), 1);
       return sum + product;
     }, 0);
   }
@@ -552,7 +553,7 @@ button{
     expr[which] = next;
 
     try{
-      if (/^\d+(?:[+×]\d+)*$/.test(next)){
+      if (/^\d+(?:[+*]\d+)*$/.test(next)){
         value[which] = safeCalc(next);
       }else if (/^\d+$/.test(next)){
         value[which] = Number(next);
@@ -580,9 +581,9 @@ button{
       return;
     }
 
-    if (key === "+" || key === "×"){
+    if (key === "+" || key === "*"){
       if (!s) s = String(value[which] || 0);
-      if (/[+×]$/.test(s)){
+      if (/[+*]$/.test(s)){
         s = s.slice(0,-1) + key;
       }else{
         s += key;
@@ -740,6 +741,36 @@ button{
       $("cameraOverlay").classList.add("show");
     }
   }
+
+
+  // iOS Safari のピンチイン/ピンチアウトを禁止
+  ["gesturestart","gesturechange","gestureend"].forEach(type => {
+    document.addEventListener(type, e => e.preventDefault(), { passive:false });
+  });
+
+  document.addEventListener("touchmove", e => {
+    if (e.touches && e.touches.length > 1) {
+      e.preventDefault();
+    }
+  }, { passive:false });
+
+
+  // ダブルタップ拡大を禁止（テンキー等のbutton連打は妨げない）
+  let lastNonButtonTouchEnd = 0;
+
+  document.addEventListener("touchend", e => {
+    if (e.target.closest && e.target.closest("button")) return;
+
+    const now = Date.now();
+    if (now - lastNonButtonTouchEnd <= 320) {
+      e.preventDefault();
+    }
+    lastNonButtonTouchEnd = now;
+  }, { passive:false });
+
+  document.addEventListener("dblclick", e => {
+    e.preventDefault();
+  }, { passive:false });
 
   document.querySelectorAll("[data-key]").forEach(btn=>{
     btn.addEventListener("click",()=>press(btn.dataset.key));
